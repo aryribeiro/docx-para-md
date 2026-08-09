@@ -37,7 +37,7 @@ setup_libreoffice_path()
 # CONFIGURAÇÃO DE PÁGINA E CSS (compacto, para caber no lightbox do AtlasDocs)
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Conversor de Formatos Antigos",
+    page_title="Conversor DOCX para MD",
     page_icon="📄",
     layout="centered",
     initial_sidebar_state="collapsed",
