@@ -20,7 +20,7 @@ A conversão é feita em duas camadas, sempre usando o motor do LibreOffice:
 
 Na prática, é o caminho 2 que roda na maioria dos deploys hoje — o caminho 1 passa a ser usado automaticamente assim que a distribuição do sistema operacional atualizar o pacote do LibreOffice.
 
-**Limitação conhecida:** imagens incorporadas no `.docx` não são empacotadas junto ao `.md` baixado (o app entrega um único arquivo de texto). Referências de imagem podem aparecer no Markdown apontando para um caminho que não existe.
+**Imagens:** no caminho 2, o LibreOffice grava as imagens do `.docx` como arquivos PNG soltos ao lado do HTML. Antes de gerar o Markdown, o app embute cada uma delas no próprio texto como data URI (`![](data:image/png;base64,...)`), então o `.md` baixado é um arquivo único e autocontido — as imagens aparecem em qualquer leitor de Markdown que aceite data URI (VS Code, Obsidian, Typora; o GitHub bloqueia).
 
 ## 🚀 Rodar localmente
 

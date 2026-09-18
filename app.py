@@ -8,6 +8,10 @@ from pathlib import Path
 import platform
 import time
 import random
+import re
+import base64
+import mimetypes
+from urllib.parse import unquote
 
 from markdownify import markdownify
 
@@ -108,6 +112,40 @@ def run_lo_subprocess_with_backoff(cmd_args, env, max_retries=3, base_delay=0.5,
     return None
 
 # ---------------------------------------------------------------------------
+# IMAGENS DO HTML INTERMEDIÁRIO -> DATA URI
+# ---------------------------------------------------------------------------
+_IMG_SRC_RE = re.compile(r"""(<img\b[^>]*?\bsrc\s*=\s*["'])([^"']+)(["'])""", re.IGNORECASE)
+
+
+def embed_local_images_as_data_uri(html_content: str, base_dir) -> str:
+    """Substitui cada `<img src="arquivo.png">` que aponta para um arquivo
+    local (relativo a `base_dir`) por um data URI base64.
+
+    O filtro "HTML (StarWriter)" do LibreOffice grava as imagens do .docx
+    como PNGs soltos ao lado do HTML (ex.: `nome_html_1a2b3c4d.png`); sem
+    este passo o Markdown final referencia arquivos que o usuário nunca
+    recebe. Fontes já embutidas (`data:`) ou remotas (`http(s)://`) e
+    arquivos inexistentes ficam como estão.
+    """
+    base_dir = Path(base_dir)
+
+    def _replace(match):
+        prefix, src, suffix = match.groups()
+        src_stripped = src.strip()
+        if src_stripped.lower().startswith(("data:", "http://", "https://", "//")):
+            return match.group(0)
+        candidate = Path(unquote(src_stripped))
+        if not candidate.is_absolute():
+            candidate = base_dir / candidate
+        if not candidate.is_file():
+            return match.group(0)
+        mime = mimetypes.guess_type(candidate.name)[0] or "image/png"
+        encoded = base64.b64encode(candidate.read_bytes()).decode("ascii")
+        return f"{prefix}data:{mime};base64,{encoded}{suffix}"
+
+    return _IMG_SRC_RE.sub(_replace, html_content)
+
+# ---------------------------------------------------------------------------
 # CONVERSÃO DE DOCX PARA MARKDOWN
 # ---------------------------------------------------------------------------
 def convert_docx_to_md(input_file, output_dir):
@@ -179,6 +217,9 @@ def convert_docx_to_md(input_file, output_dir):
             return None
 
         html_content = html_file.read_text(encoding="utf-8", errors="ignore")
+        # O LibreOffice grava as imagens como PNGs soltos em output_dir;
+        # embutir como data URI antes do markdownify para o .md ser autocontido.
+        html_content = embed_local_images_as_data_uri(html_content, output_dir)
         md_content = markdownify(html_content, heading_style="ATX", bullets="-").strip() + "\n"
 
         md_output = Path(output_dir) / (input_path.stem + ".md")
